@@ -1,0 +1,21 @@
+*.iml
+.gradle/
+.kotlin/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.keystore
+*.jks
+
+# Pre-trained openWakeWord test models are CC BY-NC-SA 4.0 and only used for local testing.
+app/src/main/assets/models/hey_jarvis*.onnx
+app/src/main/assets/models/alexa*.onnx
+app/src/main/assets/models/hey_mycroft*.onnx
+
+# Training workspace (recordings, generated clips, feature files).
+/training/data/

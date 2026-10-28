@@ -1,0 +1,30 @@
+Hey Claude (Android)
+Copyright 2026 Ömer Şerif Durmuş
+
+This product includes the following third-party components:
+
+openWakeWord (https://github.com/dscripka/openWakeWord)
+  app/src/main/assets/models/melspectrogram.onnx
+  app/src/main/assets/models/embedding_model.onnx
+  Copyright 2022 David Scripka. Licensed under the Apache License, Version 2.0.
+  The embedding model is a re-implementation of Google's speech_embedding model
+  (https://tfhub.dev/google/speech_embedding/1), released under the Apache License, Version 2.0.
+  The streaming feature pipeline in FeatureExtractor.kt follows openwakeword/utils.py.
+
+Wake word model
+  app/src/main/assets/models/hey_claude.onnx
+  Trained by the author with the openWakeWord training pipeline. The training data includes
+  synthetic speech from the Piper LibriTTS voice and the openWakeWord precomputed negative
+  features (https://huggingface.co/datasets/davidscripka/openwakeword_features), which are
+  licensed CC BY-NC-SA 4.0. The model is therefore released under the Creative Commons
+  Attribution-NonCommercial-ShareAlike 4.0 International license
+  (https://creativecommons.org/licenses/by-nc-sa/4.0/), not under Apache-2.0.
+
+Shizuku API (https://github.com/RikkaApps/Shizuku-API)
+  Copyright (c) 2021 RikkaW. Licensed under the MIT License.
+
+ONNX Runtime (https://github.com/microsoft/onnxruntime)
+  Copyright Microsoft Corporation. Licensed under the MIT License.
+
+"Claude" is a trademark of Anthropic, PBC. This project is not affiliated with,
+sponsored by, or endorsed by Anthropic.
