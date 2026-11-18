@@ -23,7 +23,7 @@ class AssistKeyService() : IAssistKeyService.Stub() {
     }
 
     override fun pressAssistKey(): Boolean = try {
-        val process = ProcessBuilder("/system/bin/input", "keyevent", "KEYCODE_ASSIST")
+        val process = ProcessBuilder("/system/bin/input", "keyevent", "219")
             .redirectErrorStream(true)
             .start()
         val finished = process.waitFor(5, TimeUnit.SECONDS)

@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 private val Accent = Color(0xFF3D6B8F)
 
 @Composable
-fun HeyClaudeTheme(content: @Composable () -> Unit) {
+fun HeyAliceTheme(content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
     val colors = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {

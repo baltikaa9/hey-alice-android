@@ -77,6 +77,7 @@ object ShizukuBridge {
         Shizuku.addBinderReceivedListenerSticky { refresh() }
         Shizuku.addBinderDeadListener {
             service = null
+            pending?.countDown()
             refresh()
         }
         Shizuku.addRequestPermissionResultListener { requestCode, _ ->
@@ -149,6 +150,7 @@ object ShizukuBridge {
         } catch (e: RemoteException) {
             Log.w(TAG, "Helper process went away", e)
             service = null
+            refresh()
             false
         }
     }
@@ -164,12 +166,14 @@ object ShizukuBridge {
             // Drop any stale registration first, or the callback would fire once per bind.
             runCatching { Shizuku.unbindUserService(serviceArgs, connection, false) }
             Shizuku.bindUserService(serviceArgs, connection)
+            latch.await(BIND_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            return service
         } catch (e: RuntimeException) {
             Log.w(TAG, "Could not start the helper process", e)
+            refresh()
             return null
+        } finally {
+            pending = null
         }
-        latch.await(BIND_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-        pending = null
-        return service
     }
 }

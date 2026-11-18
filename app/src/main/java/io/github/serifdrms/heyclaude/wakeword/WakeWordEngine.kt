@@ -2,18 +2,15 @@ package io.github.serifdrms.heyclaude.wakeword
 
 import ai.onnxruntime.OrtEnvironment
 import android.content.Context
-import android.util.Log
-import java.io.FileNotFoundException
 import java.security.MessageDigest
 
 class ModelIntegrityException(message: String) : Exception(message)
 
 /**
- * Loads the bundled ONNX models, checks their hashes and wires them into a [WakeWordDetector].
+ * Connects the verified bundled feature extractors and imported classifier.
  */
 class WakeWordEngine private constructor(
     val detector: WakeWordDetector,
-    val phrases: List<String>,
     private val models: List<OnnxModel>,
 ) : AutoCloseable {
 
@@ -22,8 +19,6 @@ class WakeWordEngine private constructor(
     }
 
     companion object {
-        private const val TAG = "WakeWordEngine"
-
         fun load(context: Context, threshold: Float): WakeWordEngine {
             val env = OrtEnvironment.getEnvironment()
             val loaded = mutableListOf<OnnxModel>()
@@ -31,7 +26,10 @@ class WakeWordEngine private constructor(
                 val mel = OnnxModel(env, readVerified(context, ModelCatalog.melSpectrogram)).also(loaded::add)
                 val emb = OnnxModel(env, readVerified(context, ModelCatalog.embedding)).also(loaded::add)
 
+                val model = AliceModel.load(context).also(loaded::add)
+                val frames = model.inputShape[1].toInt()
                 val extractor = FeatureExtractor(
+                    maxFeatures = frames,
                     melSpectrogram = { samples ->
                         val out = mel.run(samples, longArrayOf(1, samples.size.toLong()))
                         Array(out.size / FeatureExtractor.MEL_BINS) { frame ->
@@ -48,28 +46,15 @@ class WakeWordEngine private constructor(
                     },
                 )
 
-                val wakeWords = mutableListOf<WakeWord>()
-                val phrases = mutableListOf<String>()
-                for (spec in ModelCatalog.wakeWords) {
-                    val bytes = try {
-                        readVerified(context, spec.asset)
-                    } catch (e: FileNotFoundException) {
-                        Log.w(TAG, "Skipping ${spec.id}: ${spec.asset.path} is not bundled")
-                        continue
-                    }
-                    val model = OnnxModel(env, bytes).also(loaded::add)
-                    val frames = model.inputShape[1].toInt()
-                    wakeWords += WakeWord(spec.id, frames) { features ->
-                        val flat = FloatArray(frames * FeatureExtractor.EMBEDDING_SIZE)
-                        features.forEachIndexed { i, row -> row.copyInto(flat, i * FeatureExtractor.EMBEDDING_SIZE) }
-                        model.run(flat, longArrayOf(1, frames.toLong(), FeatureExtractor.EMBEDDING_SIZE.toLong()))[0]
-                    }
-                    phrases += spec.phrase
+                val wakeWord = WakeWord("alice", frames) { features ->
+                    val width = FeatureExtractor.EMBEDDING_SIZE
+                    val flat = FloatArray(frames * width)
+                    features.forEachIndexed { i, row -> row.copyInto(flat, i * width) }
+                    val score = model.run(flat, longArrayOf(1, frames.toLong(), width.toLong())).single()
+                    if (score in 0f..1f) score else 0f
                 }
-                if (wakeWords.isEmpty()) throw FileNotFoundException("No wake word model is bundled")
 
-                val detector = WakeWordDetector(extractor, wakeWords, threshold)
-                return WakeWordEngine(detector, phrases, loaded)
+                return WakeWordEngine(WakeWordDetector(extractor, listOf(wakeWord), threshold), loaded)
             } catch (e: Exception) {
                 loaded.forEach { it.close() }
                 throw e

@@ -21,7 +21,7 @@ import java.util.concurrent.Executors
  * to disk and the buffer is reused, so at most one chunk is ever kept in memory.
  *
  * VOICE_RECOGNITION is deliberately not a privacy-sensitive source. If this app opened the
- * mic as VOICE_COMMUNICATION, Android would give it priority and Claude would hear silence.
+ * mic as VOICE_COMMUNICATION, Android would give it priority and Alice would hear silence.
  */
 class MicCapture(
     private val context: Context,
@@ -100,7 +100,7 @@ class MicCapture(
 
     @Synchronized
     fun stop() {
-        if (!running) return
+        if (record == null) return
         running = false
         record?.let {
             try {
@@ -109,7 +109,7 @@ class MicCapture(
                 Log.w(TAG, "stop() on an inactive recorder", e)
             }
         }
-        thread?.join(500)
+        thread?.join()
         thread = null
         record?.unregisterAudioRecordingCallback(silenceCallback)
         record?.release()
@@ -139,7 +139,7 @@ class MicCapture(
                     chunksSinceCheck = 0
                     silenced = audioRecord.activeRecordingConfiguration?.isClientSilenced ?: false
                 }
-                // Another app (e.g. Claude in voice mode) owns the mic; skip the work.
+                // Another app (e.g. Alice in voice mode) owns the mic; skip the work.
                 if (silenced) continue
 
                 onChunk(chunk)

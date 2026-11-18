@@ -1,65 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Hey Claude</string>
-
-    <string name="notification_channel">Listening</string>
-    <string name="notification_title">Listening for the wake word</string>
-    <string name="notification_text">Audio stays on this phone. Paused while the screen is locked.</string>
-
-    <string name="action_start">Start listening</string>
-    <string name="action_stop">Stop</string>
-    <string name="start_needs_mic">Grant microphone access first.</string>
-
-    <string name="status_title">Status</string>
-    <string name="status_stopped">Stopped</string>
-    <string name="status_listening">Listening</string>
-    <string name="status_paused_locked">Paused — screen is locked</string>
-    <string name="status_paused_cooldown">Paused — Claude was just opened</string>
-    <string name="status_paused_mic_busy">Paused — another app (e.g. Claude) is using the microphone</string>
-    <string name="status_error_models">Wake word models could not be loaded.</string>
-    <string name="status_error_mic">The microphone could not be opened.</string>
-    <string name="status_error_permission">Microphone permission is missing.</string>
-    <string name="level_label">Score: %1$d%% (trigger at %2$d%%)</string>
-
-    <string name="setup_title">Setup</string>
-    <string name="grant">Allow</string>
-    <string name="open_settings">Settings</string>
-    <string name="open_store">Play Store</string>
-    <string name="setup_mic">Microphone</string>
-    <string name="setup_mic_desc">Needed to hear the wake word.</string>
-    <string name="setup_notifications">Notifications</string>
-    <string name="setup_notifications_desc">Shows that listening is on and lets you stop it.</string>
-    <string name="setup_overlay">Display over other apps</string>
-    <string name="setup_overlay_desc">Only needed for the text-chat fallback when Shizuku isn\'t running.</string>
-    <string name="setup_battery">Battery optimization off</string>
-    <string name="setup_battery_desc">Keeps the phone from putting the app to sleep.</string>
-    <string name="setup_claude">Claude app</string>
-    <string name="setup_claude_desc">Must be installed.</string>
+    <string name="app_name">Привет, Алиса</string>
+    <string name="action_start">Начать</string>
+    <string name="action_stop">Остановить</string>
+    <string name="grant">Разрешить</string>
+    <string name="open_settings">Открыть настройки</string>
+    <string name="open_store">Открыть магазин</string>
+    <string name="status_title">Прослушивание</string>
+    <string name="status_stopped">Остановлено</string>
+    <string name="status_starting">Загрузка модели…</string>
+    <string name="status_listening">Слушаю фразу «Алиса»</string>
+    <string name="status_paused_cooldown">Пауза на время разговора с Алисой</string>
+    <string name="status_paused_mic_busy">Пауза: микрофон занят</string>
+    <string name="status_error_models">Не удалось загрузить модель</string>
+    <string name="status_error_mic">Ошибка микрофона</string>
+    <string name="status_error_permission">Нужен доступ к микрофону</string>
+    <string name="status_error_foreground">Не удалось начать прослушивание</string>
+    <string name="start_requirements">Импортируйте модель, разрешите доступ к микрофону и уведомлениям, подключите Shizuku.</string>
+    <string name="level_label">Оценка %1$d%% · порог %2$d%%</string>
+    <string name="setup_title">Настройка</string>
+    <string name="setup_mic">Микрофон</string>
+    <string name="setup_mic_desc">Для распознавания фразы «Алиса» на устройстве.</string>
+    <string name="setup_notifications">Уведомления</string>
+    <string name="setup_notifications_desc">Кнопка остановки в панели уведомлений.</string>
+    <string name="setup_battery">Работа при погашенном экране</string>
+    <string name="setup_battery_desc">Если телефон останавливает прослушивание в фоне, разрешите работу без ограничений батареи.</string>
+    <string name="setup_alice">Алиса AI</string>
+    <string name="setup_alice_desc">Установите приложение и выберите его цифровым помощником по умолчанию.</string>
+    <string name="assistant_settings">Приложения по умолчанию</string>
     <string name="setup_shizuku">Shizuku</string>
-    <string name="shizuku_not_installed">Lets the app press the assistant key, so Claude opens in voice mode.</string>
-    <string name="shizuku_not_running">Not running. Start it in the Shizuku app (needed after every reboot).</string>
-    <string name="shizuku_unsupported">This Shizuku version is too old. Update it.</string>
-    <string name="shizuku_no_permission">Running. Allow this app to use it.</string>
-    <string name="shizuku_ready">Ready. Claude will open in voice mode.</string>
-    <string name="shizuku_open">Open</string>
-    <string name="shizuku_grant_in_app">Allow Hey Claude in the Shizuku app\'s list.</string>
-
-    <string name="wake_words_title">Wake words</string>
-
-    <string name="launch_title">How to open Claude</string>
-    <string name="launch_voice">Voice mode, like the side key (recommended)</string>
-    <string name="launch_voice_needs_shizuku">Needs Shizuku. Until it\'s ready, the text chat opens instead.</string>
-    <string name="launch_text">Text chat (works without Shizuku)</string>
-    <string name="launch_test_now">Test now</string>
-    <string name="launch_test_delayed">Test in 5 s</string>
-    <string name="launch_test_delayed_toast">Go to the home screen. Claude opens in 5 seconds.</string>
-
-    <string name="tuning_title">Tuning</string>
-    <string name="threshold_label">Trigger threshold: %1$d%%</string>
-    <string name="threshold_desc">Lower triggers more easily but may react to other speech. Higher is stricter.</string>
-    <string name="cooldown_label">Pause after opening Claude: %1$d s</string>
-    <string name="cooldown_desc">Listening stays off at least this long. It also waits until no other app is using the microphone.</string>
-
-    <string name="footer_privacy">This app has no internet permission. Audio is processed on the phone in 80 ms pieces and is never stored.</string>
-    <string name="footer_unofficial">Unofficial project. Not affiliated with or endorsed by Anthropic.</string>
+    <string name="shizuku_not_installed">Установите Shizuku для вызова системного помощника.</string>
+    <string name="shizuku_not_running">Запустите сервис в приложении Shizuku.</string>
+    <string name="shizuku_unsupported">Обновите Shizuku до актуальной версии.</string>
+    <string name="shizuku_no_permission">Предоставьте приложению доступ к Shizuku.</string>
+    <string name="shizuku_ready">Подключено.</string>
+    <string name="shizuku_open">Открыть</string>
+    <string name="shizuku_grant_in_app">Разрешите доступ для «Привет, Алиса» в приложении Shizuku.</string>
+    <string name="wake_words_title">Модель «Алиса»</string>
+    <string name="model_missing">Импортируйте ONNX-файл модели openWakeWord.</string>
+    <string name="model_importing">Проверка модели…</string>
+    <string name="model_ready">Модель готова.</string>
+    <string name="model_error">Не удалось импортировать файл. Выберите совместимую модель openWakeWord в формате ONNX.</string>
+    <string name="model_replace">Заменить модель</string>
+    <string name="model_import">Выбрать файл</string>
+    <string name="model_stop_first">Остановите прослушивание, чтобы заменить модель.</string>
+    <string name="launch_title">Вызов помощника</string>
+    <string name="launch_description">Кнопка проверки отправляет тот же вызов, что и фраза «Алиса» или поддерживаемая кнопка Bluetooth.</string>
+    <string name="launch_test_now">Проверить вызов</string>
+    <string name="launch_failed">Вызов не удался. Проверьте, что Shizuku запущен и приложению предоставлен доступ.</string>
+    <string name="tuning_title">Параметры распознавания</string>
+    <string name="threshold_label">Порог распознавания: %1$d%%</string>
+    <string name="threshold_desc">Снизьте порог, если приложение пропускает обращения. Повысьте его при ложных срабатываниях.</string>
+    <string name="cooldown_label">Пауза после вызова: %1$d с</string>
+    <string name="cooldown_desc">Прослушивание возобновится после паузы, когда микрофон освободится.</string>
+    <string name="footer_privacy">Запись обрабатывается в оперативной памяти устройства.</string>
+    <string name="footer_unofficial">Независимый проект. Вызов и команды выполняет системный помощник.</string>
+    <string name="notification_channel">Прослушивание фразы</string>
+    <string name="notification_title">Привет, Алиса</string>
+    <string name="notification_text">Слушаю фразу «Алиса»</string>
+    <string name="notification_shizuku">Пауза: откройте приложение, чтобы восстановить доступ к Shizuku.</string>
 </resources>
