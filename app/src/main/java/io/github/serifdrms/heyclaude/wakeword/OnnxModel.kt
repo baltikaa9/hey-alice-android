@@ -1,29 +1,40 @@
 package io.github.serifdrms.heyclaude.wakeword
 
+import ai.onnxruntime.OnnxJavaType
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import ai.onnxruntime.TensorInfo
 import java.nio.FloatBuffer
 
-/**
- * Thin wrapper around an ONNX Runtime session with a single float input and output.
- * One thread per session: these models are tiny and run every 80 ms, so extra threads
- * would only cost battery.
- */
+/** Single-input, single-output float ONNX inference on one thread. */
 class OnnxModel(private val env: OrtEnvironment, modelBytes: ByteArray) : AutoCloseable {
 
-    private val options = OrtSession.SessionOptions().apply {
-        setIntraOpNumThreads(1)
-        setInterOpNumThreads(1)
-        setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+    private val session = OrtSession.SessionOptions().use { options ->
+        options.setIntraOpNumThreads(1)
+        options.setInterOpNumThreads(1)
+        options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+        env.createSession(modelBytes, options)
     }
-    private val session: OrtSession = env.createSession(modelBytes, options)
-    private val inputName: String = session.inputNames.first()
 
-    /** Declared input shape; dynamic dimensions are reported as -1. */
-    val inputShape: LongArray =
-        (session.inputInfo.getValue(inputName).info as TensorInfo).shape
+    private val inputName: String
+    val inputShape: LongArray
+
+    init {
+        try {
+            val input = session.inputInfo.entries.single()
+            val inputInfo = input.value.info as? TensorInfo
+            val outputInfo = session.outputInfo.values.single().info as? TensorInfo
+            require(inputInfo?.type == OnnxJavaType.FLOAT && outputInfo?.type == OnnxJavaType.FLOAT) {
+                "Expected one float tensor input and output"
+            }
+            inputName = input.key
+            inputShape = checkNotNull(inputInfo).shape
+        } catch (e: Exception) {
+            session.close()
+            throw e
+        }
+    }
 
     fun run(input: FloatArray, shape: LongArray): FloatArray =
         OnnxTensor.createTensor(env, FloatBuffer.wrap(input), shape).use { tensor ->
@@ -33,8 +44,5 @@ class OnnxModel(private val env: OrtEnvironment, modelBytes: ByteArray) : AutoCl
             }
         }
 
-    override fun close() {
-        session.close()
-        options.close()
-    }
+    override fun close() = session.close()
 }

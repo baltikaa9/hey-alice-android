@@ -11,9 +11,9 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "io.github.serifdrms.heyclaude"
+        applicationId = "io.github.baltikaa9.heyalice"
         minSdk = 29
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 5
         versionName = "0.3.1"
 

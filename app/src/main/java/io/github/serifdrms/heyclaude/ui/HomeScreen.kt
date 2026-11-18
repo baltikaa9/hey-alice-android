@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -30,7 +29,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -41,19 +39,18 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.serifdrms.heyclaude.R
-import io.github.serifdrms.heyclaude.launch.ClaudeLauncher
-import io.github.serifdrms.heyclaude.launch.LaunchMethod
+import io.github.serifdrms.heyclaude.launch.AliceActivation
 import io.github.serifdrms.heyclaude.service.ErrorReason
 import io.github.serifdrms.heyclaude.service.ListenerService
 import io.github.serifdrms.heyclaude.service.ListenerState
@@ -61,15 +58,18 @@ import io.github.serifdrms.heyclaude.service.ListenerStatus
 import io.github.serifdrms.heyclaude.settings.AppSettings
 import io.github.serifdrms.heyclaude.shizuku.ShizukuBridge
 import io.github.serifdrms.heyclaude.shizuku.ShizukuStatus
-import io.github.serifdrms.heyclaude.wakeword.ModelCatalog
+import io.github.serifdrms.heyclaude.wakeword.AliceModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 private data class SetupState(
     val microphone: Boolean,
     val notifications: Boolean,
-    val overlay: Boolean,
     val battery: Boolean,
-    val claudeInstalled: Boolean,
+    val aliceInstalled: Boolean,
 )
 
 private fun readSetup(context: Context): SetupState {
@@ -80,9 +80,10 @@ private fun readSetup(context: Context): SetupState {
         microphone = granted(Manifest.permission.RECORD_AUDIO),
         notifications = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             granted(Manifest.permission.POST_NOTIFICATIONS),
-        overlay = Settings.canDrawOverlays(context),
         battery = power.isIgnoringBatteryOptimizations(context.packageName),
-        claudeInstalled = ClaudeLauncher.isInstalled(context),
+        aliceInstalled = runCatching {
+            context.packageManager.getApplicationInfo(AliceActivation.ALICE_PACKAGE, 0)
+        }.isSuccess,
     )
 }
 
@@ -94,12 +95,36 @@ fun HomeScreen() {
     val status by ListenerState.status.collectAsStateWithLifecycle()
     val level by ListenerState.level.collectAsStateWithLifecycle()
     val shizuku by ShizukuBridge.status.collectAsStateWithLifecycle()
+    val launchFailed by AliceActivation.failed.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var modelImported by remember { mutableStateOf(AliceModel.isImported(context)) }
+    var importing by remember { mutableStateOf(false) }
+    var importError by remember { mutableStateOf(false) }
+    val running = status != ListenerStatus.Stopped && status !is ListenerStatus.Error
+
+    val modelPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null && !importing) {
+            importing = true
+            importError = false
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) { AliceModel.import(context.applicationContext, uri) }
+                    modelImported = true
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    importError = true
+                } finally {
+                    importing = false
+                }
+            }
+        }
+    }
 
     var setup by remember { mutableStateOf(readSetup(context)) }
     LifecycleResumeEffect(Unit) {
         setup = readSetup(context)
         ShizukuBridge.refresh()
-        if (ListenerState.status.value == ListenerStatus.PausedLocked) ListenerService.recheck(context)
         onPauseOrDispose { }
     }
 
@@ -120,7 +145,8 @@ fun HomeScreen() {
                 status = status,
                 level = level,
                 threshold = settings.threshold,
-                canStart = setup.microphone,
+                canStart = setup.microphone && setup.notifications && modelImported && !importing &&
+                    shizuku == ShizukuStatus.READY,
                 onStart = { ListenerService.start(context) },
                 onStop = { ListenerService.stop(context) },
             )
@@ -143,17 +169,6 @@ fun HomeScreen() {
                 }
 
                 SetupRow(
-                    title = stringResource(R.string.setup_overlay),
-                    description = stringResource(R.string.setup_overlay_desc),
-                    done = setup.overlay,
-                    action = stringResource(R.string.open_settings),
-                ) {
-                    context.startActivity(
-                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")),
-                    )
-                }
-
-                SetupRow(
                     title = stringResource(R.string.setup_battery),
                     description = stringResource(R.string.setup_battery_desc),
                     done = setup.battery,
@@ -168,29 +183,56 @@ fun HomeScreen() {
                 }
 
                 SetupRow(
-                    title = stringResource(R.string.setup_claude),
-                    description = stringResource(R.string.setup_claude_desc),
-                    done = setup.claudeInstalled,
+                    title = stringResource(R.string.setup_alice),
+                    description = stringResource(R.string.setup_alice_desc),
+                    done = setup.aliceInstalled,
                     action = stringResource(R.string.open_store),
                 ) {
                     runCatching {
                         context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${ClaudeLauncher.PACKAGE}"))
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${AliceActivation.ALICE_PACKAGE}")),
                         )
                     }
                 }
+
+                OutlinedButton(onClick = {
+                    context.startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
+                }) { Text(stringResource(R.string.assistant_settings)) }
 
                 ShizukuRow(shizuku)
             }
 
             SectionCard(title = stringResource(R.string.wake_words_title)) {
-                ModelCatalog.wakeWords.forEach { spec ->
-                    Text("• ${spec.phrase}", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(
+                    when {
+                        importing -> R.string.model_importing
+                        modelImported -> R.string.model_ready
+                        else -> R.string.model_missing
+                    },
+                ))
+                if (importError) {
+                    Text(
+                        stringResource(R.string.model_error),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
+                OutlinedButton(
+                    onClick = { modelPicker.launch(arrayOf("*/*")) },
+                    enabled = !running && !importing,
+                ) { Text(stringResource(if (modelImported) R.string.model_replace else R.string.model_import)) }
+                if (running) Text(stringResource(R.string.model_stop_first))
             }
 
-            LaunchMethodCard(settings = settings, shizuku = shizuku)
+            SectionCard(title = stringResource(R.string.launch_title)) {
+                Text(stringResource(R.string.launch_description))
+                OutlinedButton(
+                    enabled = shizuku == ShizukuStatus.READY,
+                    onClick = { AliceActivation.request() },
+                ) { Text(stringResource(R.string.launch_test_now)) }
+                if (launchFailed) {
+                    Text(stringResource(R.string.launch_failed), color = MaterialTheme.colorScheme.error)
+                }
+            }
 
             TuningCard(settings = settings)
 
@@ -222,13 +264,15 @@ private fun StatusCard(
     val text = when (status) {
         ListenerStatus.Stopped -> stringResource(R.string.status_stopped)
         ListenerStatus.Listening -> stringResource(R.string.status_listening)
-        ListenerStatus.PausedLocked -> stringResource(R.string.status_paused_locked)
+        ListenerStatus.Starting -> stringResource(R.string.status_starting)
+        ListenerStatus.PausedShizuku -> stringResource(R.string.notification_shizuku)
         ListenerStatus.PausedCooldown -> stringResource(R.string.status_paused_cooldown)
         ListenerStatus.PausedMicBusy -> stringResource(R.string.status_paused_mic_busy)
         is ListenerStatus.Error -> when (status.reason) {
             ErrorReason.MODELS -> stringResource(R.string.status_error_models)
             ErrorReason.MICROPHONE -> stringResource(R.string.status_error_mic)
             ErrorReason.PERMISSION -> stringResource(R.string.status_error_permission)
+            ErrorReason.FOREGROUND -> stringResource(R.string.status_error_foreground)
         } + (status.detail?.let { "\n$it" } ?: "")
     }
 
@@ -254,7 +298,7 @@ private fun StatusCard(
                     Text(stringResource(R.string.action_start))
                 }
                 if (!canStart) {
-                    Text(stringResource(R.string.start_needs_mic), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.start_requirements), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -334,68 +378,6 @@ private fun onShizukuAction(context: Context, status: ShizukuStatus) {
             }
         }
         ShizukuStatus.READY -> Unit
-    }
-}
-
-@Composable
-private fun LaunchMethodCard(settings: AppSettings, shizuku: ShizukuStatus) {
-    val context = LocalContext.current
-    var method by remember { mutableStateOf(settings.launchMethod) }
-
-    fun choose(newMethod: LaunchMethod) {
-        method = newMethod
-        settings.launchMethod = newMethod
-    }
-
-    fun test(delayMs: Long) {
-        val app = context.applicationContext
-        val chosen = method
-        if (delayMs > 0) Toast.makeText(app, R.string.launch_test_delayed_toast, Toast.LENGTH_LONG).show()
-        Thread {
-            Thread.sleep(delayMs)
-            ClaudeLauncher.launch(app, chosen)
-        }.start()
-    }
-
-    SectionCard(title = stringResource(R.string.launch_title)) {
-        ChoiceRow(
-            title = stringResource(R.string.launch_voice),
-            note = if (shizuku == ShizukuStatus.READY) null else stringResource(R.string.launch_voice_needs_shizuku),
-            selected = method == LaunchMethod.ASSIST_KEY,
-        ) { choose(LaunchMethod.ASSIST_KEY) }
-        ChoiceRow(
-            title = stringResource(R.string.launch_text),
-            note = null,
-            selected = method == LaunchMethod.ASSIST_INTENT,
-        ) { choose(LaunchMethod.ASSIST_INTENT) }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { test(0) }) { Text(stringResource(R.string.launch_test_now)) }
-            OutlinedButton(onClick = { test(5_000) }) { Text(stringResource(R.string.launch_test_delayed)) }
-        }
-    }
-}
-
-@Composable
-private fun ChoiceRow(title: String, note: String?, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
-    ) {
-        RadioButton(selected = selected, onClick = null)
-        Spacer(Modifier.width(8.dp))
-        Column {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            if (note != null) {
-                Text(
-                    note,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
     }
 }
 
